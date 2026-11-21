@@ -85,14 +85,32 @@ function fit(job) {
   return {matched, gaps, excluded, wrongType, matchesLocation,
     score: excluded || wrongType ? -100 : matched.length - gaps.length + (matchesLocation ? 2 : 0) + (job.type === "Permanent" ? 1 : 0)};
 }
+function answers() {
+  const p = state.profile;
+  return [["Name",p.name],["Current role",p.role],["Current company",p.employer],
+    ["Education",p.education],["Employment history",p.employment],["Fixed pay",p.fixedPay],
+    ["Variable pay",p.variablePay],["Current total compensation",p.salary],["Expected compensation",p.target],
+    ["Notice period",p.noticePeriod],["Skills",p.skills],["Project examples",p.summary],
+    ["Approved screening answers",p.answers],["Resume link",p.resume]].filter(([,value]) => value);
+}
+function copyText(value, label) {
+  navigator.clipboard.writeText(value).then(() => notify(label + " copied."),
+    () => notify("Copy the text directly from the app."));
+}
+function renderAnswers() {
+  const list = $("answerList");
+  list.replaceChildren();
+  if (!answers().length) node("p", "Add your details in Profile to start.", list);
+  for (const [label,value] of answers()) {
+    const card = node("article", null, list);
+    node("h3", label, card);
+    node("p", value, card).style.whiteSpace = "pre-wrap";
+    button(card, "Copy " + label, () => copyText(value,label));
+  }
+}
 function applicationPack(job) {
   const p = state.profile;
-  return [
-    ["Name", p.name], ["Current role", [p.role, p.employer].filter(Boolean).join(" at ")],
-    ["Current compensation", p.salary], ["Expected compensation", p.target],
-    ["Notice period", p.noticePeriod], ["Skills", p.skills], ["Experience", p.summary],
-    ["Screening answers", p.answers], ["Resume", p.resume]
-  ].filter(([,value]) => value).map(([label, value]) => label + "\n" + value).concat(
+  return answers().map(([label, value]) => label + "\n" + value).concat(
     ["\nReferral draft\nHi [Name], I'm interested in " + job.title + " at " + job.company +
     (job.req ? " (" + job.req + ")" : "") + "." +
     (p.role && p.employer ? " I work as " + p.role + " at " + p.employer + "." : "") +
@@ -108,7 +126,13 @@ function renderJobs() {
   const jobs = state.jobs.map(job => ({job, fit:fit(job)}))
     .filter(({job}) => (!status || job.status === status) &&
       [job.title, job.company, job.location, job.req].join(" ").toLowerCase().includes(query))
-    .sort((a,b) => b.fit.score - a.fit.score || b.job.posted.localeCompare(a.job.posted));
+    .sort((a,b) => {
+      const left = a.job.research;
+      const right = b.job.research;
+      if (left && right) return right.batchDate.localeCompare(left.batchDate) || left.rank - right.rank;
+      if (left || right) return left ? -1 : 1;
+      return b.fit.score - a.fit.score || b.job.posted.localeCompare(a.job.posted);
+    });
   if (!jobs.length) node("p", "No matching saved jobs. Add a link or load an employer board.", list);
   for (const {job,fit:match} of jobs) {
     const card = node("article", null, list);
@@ -121,9 +145,42 @@ function renderJobs() {
       match.gaps.length && "Skills to review: " + match.gaps.join(", ")
     ].filter(Boolean);
     node("p", explanation.join(" · ") || "Add required skills and check location and eligibility.", card).className = "fit";
+    const research = job.research;
+    if (research) {
+      node("p", "Posted " + (research.posting_date || "Unknown") +
+        (research.last_checked ? " · Checked " + research.last_checked : ""), card);
+      node("h3", research.best_move, card);
+      if (research.first_seen) node("p", "First seen " + research.first_seen, card);
+      if (research.move_reason) node("p", research.move_reason, card);
+      if (research.fit) node("p", research.fit, card);
+      if (research.gap) node("p", "Gap to check: " + research.gap, card);
+      if (research.evidence) node("p", "Lead with: " + research.evidence, card);
+      const sources = node("div", null, card);
+      sources.className = "actions";
+      link(sources, "Company careers", research.official_url);
+      link(sources, "Posting date source", research.posting_source_url);
+      link(sources, "Original listing", research.source_url);
+      if (research.referral_url || research.email || research.referral_draft) {
+        const outreach = node("details", null, card);
+        node("summary", "Referral and recruiter outreach", outreach);
+        link(outreach, research.referral_name || "LinkedIn profile", research.referral_url);
+        if (research.referral_relationship) node("p", research.referral_relationship, outreach);
+        for (const [label,value] of [["Referral note",research.referral_draft],["Recruiting email",research.email],
+          ["Subject",research.email_subject],["Email draft",research.email_draft]]) {
+          if (!value) continue;
+          node("p", label + "\n" + value, outreach).style.whiteSpace = "pre-wrap";
+          button(outreach,"Copy " + label.toLowerCase(),() => copyText(value,label));
+        }
+        link(outreach, "Email source", research.email_source_url);
+      }
+    }
     const actions = node("div", null, card);
     actions.className = "actions";
-    link(actions, "Open listing", job.url);
+    link(actions, research?.action_url ? "Open recommended route" : "Open listing", research?.action_url || job.url);
+    if (research?.best_move === "Email" && research.email) {
+      button(actions, "Copy email draft", () => copyText([research.email, research.email_subject,
+        research.email_draft].filter(Boolean).join("\n\n"), "Email draft"));
+    }
     button(actions, "Edit job", () => {
       const form = $("jobForm");
       for (const element of form.elements) if (element.name) element.value = job[element.name] ?? "";
@@ -185,7 +242,7 @@ function renderPrep() {
     button(card, "Remove", () => save({...state, prep:state.prep.filter(item => item.id !== task.id)}, "Practice task removed."));
   }
 }
-function render() { renderJobs(); renderPrep(); }
+function render() { renderJobs(); renderPrep(); renderAnswers(); }
 function fillProfile() {
   for (const field of $("profileForm").elements) {
     if (field.type === "checkbox") field.checked = Boolean(state.profile[field.name]);
@@ -298,6 +355,7 @@ $("importJson").onchange = async event => {
 };
 fillProfile();
 render();
+setupBatchImport();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Offline setup failed", error));
 }

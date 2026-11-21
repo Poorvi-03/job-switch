@@ -15,12 +15,26 @@
 <header><h1>Job Switch</h1><p>Shortlist roles, prepare applications, and practice for interviews.</p>
 <nav aria-label="Sections">
 <button data-tab="jobs" aria-selected="true">Shortlist</button>
+<button data-tab="answers" aria-selected="false">Answer Bank</button>
 <button data-tab="profile" aria-selected="false">Profile</button>
 <button data-tab="prep" aria-selected="false">Prep</button>
 <button data-tab="backup" aria-selected="false">Backup</button>
 </nav><p id="notice" role="status"></p></header>
 <main>
 <section id="jobs">
+<details class="box"><summary>Import a ranked shortlist</summary>
+<form id="batchForm">
+<label>Paste shortlist CSV or JSON<textarea name="batch" rows="4"></textarea></label>
+<label>Or open a CSV or JSON file<input id="batchFile" type="file" accept=".csv,.json,text/csv,application/json"></label>
+<button>Preview import</button>
+</form><div id="batchPreview" aria-live="polite"></div>
+</details>
+<details class="box"><summary>Connect automatic delivery</summary>
+<form id="inboxForm">
+<label>Inbox URL<input name="url" type="url" required></label>
+<label>Read key<input name="token" type="password" required autocomplete="off"></label>
+<button class="primary">Connect and sync</button> <button type="button" id="disconnect">Disconnect</button>
+</form><p id="syncState" role="status">Inbox not connected.</p></details>
 <details class="box"><summary>Add a job</summary>
 <form id="jobForm">
 <input name="id" type="hidden">
@@ -43,11 +57,18 @@
 <div class="grid"><label>Search saved jobs<input id="query" type="search"></label><label>Filter by status<select id="statusFilter"><option value="">All statuses</option></select></label></div>
 <div id="jobsList"></div>
 </section>
+<section id="answers" hidden><h2>Answer Bank</h2><p>Copy a field into an employer form. Edit saved answers in Profile.</p><div id="answerList"></div></section>
 <section id="profile" hidden>
 <h2>Application profile</h2><p>Your profile and tracker are stored in this browser.</p>
 <form id="profileForm">
 <div class="grid"><label>Name<input name="name" autocomplete="name"></label><label>Current role<input name="role"></label><label>Current company<input name="employer"></label><label>Preferred locations, comma-separated<input name="locations"></label><label>Expected compensation<input name="target"></label><label>Current compensation<input name="salary"></label><label>Notice period<input name="noticePeriod"></label><label>Companies to skip, comma-separated<input name="excluded"></label><label>Resume link<input name="resume" type="url" placeholder="Optional private link"></label><label>Resume version<input name="resumeVersion" placeholder="E.g. Analytics CV v2"></label></div>
 <label><span><input name="permanent" type="checkbox" style="width:auto"> Permanent roles only</span></label>
+<div class="grid">
+<label>Education<textarea name="education" rows="3"></textarea></label>
+<label>Employment history and dates<textarea name="employment" rows="3"></textarea></label>
+<label>Fixed pay<input name="fixedPay"></label>
+<label>Variable pay<input name="variablePay"></label>
+</div>
 <label>Skills, comma-separated<input name="skills"></label>
 <label>Approved project or experience summary<textarea name="summary" rows="4"></textarea></label>
 <label>Reusable screening answers<textarea name="answers" rows="5"></textarea></label>
@@ -59,5 +80,6 @@
 <div class="actions"><button id="exportJson" class="primary">Download backup</button><button id="exportCsv">Export jobs CSV</button></div>
 <label>Restore backup (replaces this device’s data)<input id="importJson" type="file" accept=".json,application/json"></label></section>
 </main>
+<script src="./batch.js" defer></script>
 <script src="./app.js" defer></script>
 </body></html>

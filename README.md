@@ -30,3 +30,34 @@ links and refreshing the employer board require internet access.
 Data stays in browser storage. There is no sync, scheduled search, automated
 submission or message delivery. The Greenhouse lookup contacts Greenhouse
 directly and sends the board identifier, without sending your profile.
+
+## Daily shortlist
+
+Paste a CSV or JSON batch under **Import a ranked shortlist**, or select a CSV
+exported from Excel. Preview shows new jobs, duplicates and invalid rows before
+saving. Existing statuses and notes are preserved. Posting dates can be exact,
+relative or Unknown. A job's source link and recommended first move are required.
+
+CSV headers:
+```
+rank,title,company,location,employment_type,salary,posting_date,posting_source_url,first_seen,last_checked,req_id,source_url,official_url,required_skills,fit,gap,evidence,best_move,move_reason,referral_name,referral_url,referral_relationship,referral_draft,email,email_source_url,email_subject,email_draft
+```
+
+A JSON batch has a `batch_date` in YYYY-MM-DD format and a `jobs` array. Supported
+first moves are Company careers site, LinkedIn Apply, LinkedIn referral, Email,
+and Verify eligibility. Use the Answer Bank to copy each saved field individually.
+
+## Optional automatic inbox
+
+Cloudflare Worker source and schema are in `inbox/`. Create a D1 database on
+the free plan, set its ID in wrangler.toml, and apply schema.sql. Put separate
+random 32+ character secrets in READ_KEY and WRITE_KEY through Wrangler or the
+Cloudflare dashboard. Deploy the Worker and connect its HTTPS /shortlist URL
+and read key in the phone app. Change the allowed origin in worker.mjs if you
+host the frontend elsewhere.
+
+Configure a private GPT Action to POST the JSON batch to /shortlist with an
+Authorization bearer header using the write key. GET uses a separate read key.
+The inbox stores the latest batch of public job research. Keep personal answers,
+private connection exports and resumes out of the payload. This optional backend
+requires separate provisioning before the app can sync automatically.
