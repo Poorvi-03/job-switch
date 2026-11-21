@@ -82,6 +82,14 @@ function planBatch(batch, existing) {
   }
   return {jobs, added, duplicates, rejected};
 }
+async function unpackProfile(envelope, token) {
+  if (!envelope || typeof envelope.iv !== "string" || typeof envelope.ciphertext !== "string") return null;
+  const decode = value => Uint8Array.from(atob(value), char => char.charCodeAt(0));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const key = await crypto.subtle.importKey("raw",digest,"AES-GCM",false,["decrypt"]);
+  const plaintext = await crypto.subtle.decrypt({name:"AES-GCM",iv:decode(envelope.iv)},key,decode(envelope.ciphertext));
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
 function setupBatchImport() {
   const form = $("batchForm");
   const preview = $("batchPreview");
@@ -121,10 +129,26 @@ function setupBatchImport() {
       if (target !== settings) return;
       if (response.status === 204) { syncState.textContent = "Connected. No batch has arrived yet."; return; }
       if (!response.ok) throw new Error("Check the inbox URL and read key.");
-      const plan = planBatch(await response.json(),state.jobs);
+      const payload = await response.json();
+      const seed = await unpackProfile(payload.private_profile,target.token).catch(() => null);
       if (target !== settings) return;
+      const plan = planBatch(payload,state.jobs);
       if (plan.rejected.length) throw new Error("The inbox returned an invalid batch.");
-      if (plan.added && !save({...state,jobs:plan.jobs},"New shortlist received.")) throw new Error("Browser storage is unavailable.");
+      const profile = {...state.profile};
+      let filled = 0;
+      if (seed) for (const field of $("profileForm").elements) {
+        const key = field.name;
+        const value = seed[key];
+        if (!key || (typeof value !== "string" && typeof value !== "boolean")) continue;
+        if (profile[key] !== undefined && profile[key] !== "") continue;
+        profile[key] = value;
+        filled++;
+      }
+      if ((plan.added || filled) && !save({...state,profile,jobs:plan.jobs},
+          filled ? "Profile and Answer Bank updated." : "New shortlist received.")) {
+        throw new Error("Browser storage is unavailable.");
+      }
+      if (filled) fillProfile();
       syncState.textContent = plan.added ? "Synced " + plan.added + " new jobs." : "Connected. Latest batch already saved.";
     } catch (error) {
       if (target === settings) syncState.textContent = "Sync failed. " + error.message;

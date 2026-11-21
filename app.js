@@ -36,7 +36,12 @@ function link(parent, label, value) {
   const url = http(value);
   if (!url) return;
   const element = node("a", label, parent);
-  element.href = url;
+  const destination = new URL(url);
+  const android = /Android/i.test(navigator.userAgent || "");
+  element.href = android && destination.protocol === "https:" && !destination.hash && !url.includes("#Intent;")
+    ? "intent://" + url.slice("https://".length) + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
+      encodeURIComponent(url) + ";end"
+    : url;
   element.target = "_blank";
   element.rel = "noopener noreferrer";
 }
@@ -87,7 +92,13 @@ function fit(job) {
 }
 function answers() {
   const p = state.profile;
-  return [["Name",p.name],["Current role",p.role],["Current company",p.employer],
+  return [["Name",p.name],["Email",p.email],["Phone",p.phone],["Current city",p.city],
+    ["LinkedIn profile",p.linkedin],["Portfolio or walkthrough",p.portfolio],
+    ["Current role",p.role],["Current company",p.employer],
+    ["University / institution",p.university],["Graduation year",p.graduationYear],
+    ["Relevant experience",p.experience],["Work authorization",p.authorization],
+    ["Sponsorship required",p.sponsorship],["Relocation preference",p.relocation],
+    ["Earliest joining date / availability",p.availability],["Reason for job change",p.reason],
     ["Education",p.education],["Employment history",p.employment],["Fixed pay",p.fixedPay],
     ["Variable pay",p.variablePay],["Current total compensation",p.salary],["Expected compensation",p.target],
     ["Notice period",p.noticePeriod],["Skills",p.skills],["Project examples",p.summary],
@@ -176,6 +187,9 @@ function renderJobs() {
     }
     const actions = node("div", null, card);
     actions.className = "actions";
+    const companyPeople = "https://www.linkedin.com/search/results/people/?keywords=" + encodeURIComponent(job.company);
+    link(actions, "Find first-degree connections", companyPeople + "&network=" + encodeURIComponent('["F"]'));
+    link(actions, "Find data and analytics contacts", companyPeople + encodeURIComponent(" (data science OR analytics OR machine learning)"));
     link(actions, research?.action_url ? "Open recommended route" : "Open listing", research?.action_url || job.url);
     if (research?.best_move === "Email" && research.email) {
       button(actions, "Copy email draft", () => copyText([research.email, research.email_subject,
@@ -359,3 +373,4 @@ setupBatchImport();
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Offline setup failed", error));
 }
+
