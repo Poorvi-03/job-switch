@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10262e">
+<title>Job Switch</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{color-scheme:dark;font:16px/1.55 system-ui,sans-serif;background:#0c1d24;color:#ecf6f5;--line:#35525a;--accent:#82e8cd}
+*{box-sizing:border-box}body{margin:0}header,main{max-width:900px;margin:auto;padding:24px}header{padding-bottom:0}h1,h2,h3,p{margin:0 0 12px}h1{font-size:clamp(2rem,8vw,3.6rem);letter-spacing:-.06em}h2{font-size:1.45rem}h3{font-size:1.1rem}p,small{color:#b7cdd0}nav,.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}button,input,select,textarea{font:inherit;color:inherit;border:1px solid var(--line);border-radius:9px;background:#10262e;padding:9px 12px}button{min-height:44px;cursor:pointer}button.primary,button[aria-selected=true]{background:var(--accent);color:#0c2524;border-color:var(--accent);font-weight:650}a{color:var(--accent)}label{display:grid;gap:4px;margin:8px 0;min-width:0}input,select,textarea{width:100%}textarea{resize:vertical}article,form,.box{padding:16px;border:1px solid var(--line);border-radius:14px;background:#142c35;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:0 12px}summary{cursor:pointer;font-weight:650}details[open]>summary{margin-bottom:12px} [hidden]{display:none!important} :focus-visible{outline:2px solid var(--accent);outline-offset:3px}.fit{color:var(--accent);font-weight:650}#notice{min-height:26px;color:var(--accent)}.compact{margin:0}ul{padding-left:22px}
+</style>
+</head>
+<body>
+<header><h1>Job Switch</h1><p>Shortlist roles, prepare applications, and practice for interviews.</p>
+<nav aria-label="Sections">
+<button data-tab="jobs" aria-selected="true">Shortlist</button>
+<button data-tab="profile" aria-selected="false">Profile</button>
+<button data-tab="prep" aria-selected="false">Prep</button>
+<button data-tab="backup" aria-selected="false">Backup</button>
+</nav><p id="notice" role="status"></p></header>
+<main>
+<section id="jobs">
+<details class="box"><summary>Add a job</summary>
+<form id="jobForm">
+<input name="id" type="hidden">
+<div class="grid">
+<label>Job title<input name="title" required maxlength="180"></label>
+<label>Company<input name="company" required maxlength="180"></label>
+<label>Job link<input name="url" type="url" required placeholder="https://…"></label>
+<label>Requisition ID<input name="req"></label>
+<label>Location<input name="location" placeholder="Noida, Gurugram, remote India…"></label>
+<label>Employment type<select name="type"><option>Unknown</option><option>Permanent</option><option>Contract</option><option>Internship</option></select></label>
+<label>Posted on<input name="posted" type="date"></label>
+<label>Salary as listed<input name="salary"></label>
+</div>
+<label>Required skills, separated by commas<input name="required" placeholder="SQL, Python, Statistics"></label>
+<button class="primary">Save job</button>
+</form></details>
+<details class="box"><summary>Find jobs on an employer board</summary>
+<form id="feedForm"><label>Greenhouse board name or job board URL<input name="board" required placeholder="boards.greenhouse.io/company"></label><label>Filter titles<input name="query" value="analyst, data science, data scientist, machine learning"></label><button>Load openings</button></form>
+<div id="feed"></div></details>
+<div class="grid"><label>Search saved jobs<input id="query" type="search"></label><label>Filter by status<select id="statusFilter"><option value="">All statuses</option></select></label></div>
+<div id="jobsList"></div>
+</section>
+<section id="profile" hidden>
+<h2>Application profile</h2><p>Your profile and tracker are stored in this browser.</p>
+<form id="profileForm">
+<div class="grid"><label>Name<input name="name" autocomplete="name"></label><label>Current role<input name="role"></label><label>Current company<input name="employer"></label><label>Preferred locations, comma-separated<input name="locations"></label><label>Expected compensation<input name="target"></label><label>Current compensation<input name="salary"></label><label>Notice period<input name="noticePeriod"></label><label>Companies to skip, comma-separated<input name="excluded"></label><label>Resume link<input name="resume" type="url" placeholder="Optional private link"></label><label>Resume version<input name="resumeVersion" placeholder="E.g. Analytics CV v2"></label></div>
+<label><span><input name="permanent" type="checkbox" style="width:auto"> Permanent roles only</span></label>
+<label>Skills, comma-separated<input name="skills"></label>
+<label>Approved project or experience summary<textarea name="summary" rows="4"></textarea></label>
+<label>Reusable screening answers<textarea name="answers" rows="5"></textarea></label>
+<button class="primary">Save profile</button>
+</form></section>
+<section id="prep" hidden><h2>Interview prep</h2><p>Missing skills from your saved jobs show up here. Add a practice task to make a plan.</p><div id="gaps"></div>
+<form id="prepForm"><label>Practice task<input name="task" required maxlength="300"></label><label>Practice date<input name="date" type="date"></label><button class="primary">Add task</button></form><div id="prepList"></div></section>
+<section id="backup" hidden><h2>Backup and export</h2><p>Use a JSON backup to move your profile, jobs, and practice tasks to another device. Keep the file private.</p>
+<div class="actions"><button id="exportJson" class="primary">Download backup</button><button id="exportCsv">Export jobs CSV</button></div>
+<label>Restore backup (replaces this device’s data)<input id="importJson" type="file" accept=".json,application/json"></label></section>
+</main>
+<script src="./app.js" defer></script>
+</body></html>
