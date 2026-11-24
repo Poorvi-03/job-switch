@@ -1,6 +1,14 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const statuses = ["Saved", "Shortlisted", "In progress", "Needs input", "Verify submission", "Submitted", "Interview", "Closed"];
+const jobViews = {pending:"Pending", applied:"Applied", closed:"Closed", deleted:"Deleted"};
+function jobView(job) {
+  if (job.deleted) return "deleted";
+  if (job.status === "Closed") return "closed";
+  if (["Submitted", "Interview"].includes(job.status)) return "applied";
+  return "pending";
+}
+let selectedJobView = "pending";
 const key = "job-switch-v1";
 const words = text => text.toLowerCase().split(/[\n,]+/).map(word => word.trim()).filter(Boolean);
 const clean = value => String(value ?? "").trim();
@@ -59,11 +67,11 @@ function save(next, message) {
   render();
   return true;
 }
-function updateJob(job) {
+function updateJob(job, message = "Job saved.") {
   const jobs = state.jobs.some(item => item.id === job.id)
     ? state.jobs.map(item => item.id === job.id ? job : item)
     : [...state.jobs, job];
-  return save({...state, jobs}, "Job saved.");
+  return save({...state, jobs}, message);
 }
 function addJob(data) {
   if (!http(data.url)) return notify("Enter a valid HTTP or HTTPS job link.");
@@ -133,9 +141,15 @@ function renderJobs() {
   const list = $("jobsList");
   list.replaceChildren();
   const query = $("query").value.trim().toLowerCase();
-  const status = $("statusFilter").value;
+  const counts = {pending:0, applied:0, closed:0, deleted:0};
+  for (const job of state.jobs) counts[jobView(job)]++;
+  for (const control of $("jobViews").querySelectorAll("button")) {
+    const view = control.dataset.view;
+    control.textContent = jobViews[view] + " (" + counts[view] + ")";
+    control.setAttribute("aria-pressed", String(view === selectedJobView));
+  }
   const jobs = state.jobs.map(job => ({job, fit:fit(job)}))
-    .filter(({job}) => (!status || job.status === status) &&
+    .filter(({job}) => jobView(job) === selectedJobView &&
       [job.title, job.company, job.location, job.req].join(" ").toLowerCase().includes(query))
     .sort((a,b) => {
       const left = a.job.research;
@@ -144,35 +158,54 @@ function renderJobs() {
       if (left || right) return left ? -1 : 1;
       return b.fit.score - a.fit.score || b.job.posted.localeCompare(a.job.posted);
     });
-  if (!jobs.length) node("p", "No matching saved jobs. Add a link or load an employer board.", list);
+  if (!jobs.length) node("p", query ? "No jobs match your search." : "No " + jobViews[selectedJobView].toLowerCase() + " jobs.", list);
   for (const {job,fit:match} of jobs) {
     const card = node("article", null, list);
     node("h3", job.title, card);
     node("p", [job.company, job.location || "Location unconfirmed", job.type, job.salary, job.posted && "Posted " + job.posted].filter(Boolean).join(" · "), card);
+    const controls = node("div", null, card);
+    controls.className = "actions";
+    const view = jobView(job);
+    if (view === "deleted") {
+      button(controls, "Restore job", () => updateJob({...job, deleted:false}, "Job restored to " +
+        jobViews[jobView({...job, deleted:false})] + "."));
+      continue;
+    }
+    if (view === "pending") {
+      const apply = button(controls, "Mark applied", () => updateJob({...job, status:"Submitted",
+        appliedOn:new Date().toISOString()}, "Marked applied. See the Applied list."));
+      apply.className = "primary";
+    } else if (view === "applied" || view === "closed") {
+      button(controls, "Move to pending", () => updateJob({...job, status:"Saved", appliedOn:""}, "Moved to Pending."));
+    }
+    button(controls, "Delete job", () => updateJob({...job, deleted:true}, "Moved to Deleted. You can restore it there."));
+    const research = job.research;
+    link(controls, research?.action_url ? "Open recommended route" : "Open listing", research?.action_url || job.url);
+    const info = node("details", null, card);
+    node("summary", job.status === "Submitted" ? "Applied · Job details" : job.status + " · Job details", info);
     const explanation = [
       match.excluded && "Excluded company", match.wrongType && "Outside permanent-only preference",
       match.matchesLocation && "Location keyword match",
       match.matched.length && "Skills matched: " + match.matched.join(", "),
       match.gaps.length && "Skills to review: " + match.gaps.join(", ")
     ].filter(Boolean);
-    node("p", explanation.join(" · ") || "Add required skills and check location and eligibility.", card).className = "fit";
-    const research = job.research;
+    node("p", explanation.join(" · ") || "Add required skills and check location and eligibility.", info).className = "fit";
     if (research) {
       node("p", "Posted " + (research.posting_date || "Unknown") +
-        (research.last_checked ? " · Checked " + research.last_checked : ""), card);
-      node("h3", research.best_move, card);
-      if (research.first_seen) node("p", "First seen " + research.first_seen, card);
-      if (research.move_reason) node("p", research.move_reason, card);
-      if (research.fit) node("p", research.fit, card);
-      if (research.gap) node("p", "Gap to check: " + research.gap, card);
-      if (research.evidence) node("p", "Lead with: " + research.evidence, card);
-      const sources = node("div", null, card);
+        (research.last_checked ? " · Checked " + research.last_checked : ""), info);
+      node("h3", research.best_move, info);
+      if (research.first_seen) node("p", "First seen " + research.first_seen, info);
+      if (research.move_reason) node("p", research.move_reason, info);
+      if (research.fit) node("p", research.fit, info);
+      if (research.gap) node("p", "Gap to check: " + research.gap, info);
+      if (research.evidence) node("p", "Lead with: " + research.evidence, info);
+      const sources = node("div", null, info);
       sources.className = "actions";
       link(sources, "Company careers", research.official_url);
       link(sources, "Posting date source", research.posting_source_url);
       link(sources, "Original listing", research.source_url);
       if (research.referral_url || research.email || research.referral_draft) {
-        const outreach = node("details", null, card);
+        const outreach = node("details", null, info);
         node("summary", "Referral and recruiter outreach", outreach);
         link(outreach, research.referral_name || "LinkedIn profile", research.referral_url);
         if (research.referral_relationship) node("p", research.referral_relationship, outreach);
@@ -185,12 +218,11 @@ function renderJobs() {
         link(outreach, "Email source", research.email_source_url);
       }
     }
-    const actions = node("div", null, card);
+    const actions = node("div", null, info);
     actions.className = "actions";
     const companyPeople = "https://www.linkedin.com/search/results/people/?keywords=" + encodeURIComponent(job.company);
     link(actions, "Find first-degree connections", companyPeople + "&network=" + encodeURIComponent('["F"]'));
     link(actions, "Find data and analytics contacts", companyPeople + encodeURIComponent(" (data science OR analytics OR machine learning)"));
-    link(actions, research?.action_url ? "Open recommended route" : "Open listing", research?.action_url || job.url);
     if (research?.best_move === "Email" && research.email) {
       button(actions, "Copy email draft", () => copyText([research.email, research.email_subject,
         research.email_draft].filter(Boolean).join("\n\n"), "Email draft"));
@@ -202,7 +234,7 @@ function renderJobs() {
       form.scrollIntoView({block:"start"});
       form.elements.title.focus();
     });
-    const details = node("details", null, card);
+    const details = node("details", null, info);
     node("summary", job.status + " · Application details", details);
     const form = node("form", null, details);
     const status = node("select", null, node("label", "Status", form));
@@ -218,11 +250,6 @@ function renderJobs() {
     node("button", "Save application update", form).type = "submit";
     form.onsubmit = event => {
       event.preventDefault();
-      if (status.value === "Submitted" && !proof.value.trim()) {
-        proof.setCustomValidity("Enter a confirmation reference before marking submitted.");
-        proof.reportValidity();
-        return;
-      }
       updateJob({...job, status:status.value, next:next.value.trim(), proof:proof.value.trim(), resumeUsed:version.value.trim()});
     };
     proof.oninput = () => proof.setCustomValidity("");
@@ -234,15 +261,13 @@ function renderJobs() {
       try { await navigator.clipboard.writeText(pack.value); notify("Application pack copied."); }
       catch { pack.select(); notify("Select and copy the application pack."); }
     });
-    button(details, "Remove job", () => {
-      if (confirm("Remove this job and its application record?")) save({...state, jobs:state.jobs.filter(item => item.id !== job.id)}, "Job removed.");
-    });
+
   }
 }
 function renderPrep() {
   const gaps = $("gaps");
   gaps.replaceChildren();
-  const skills = [...new Set(state.jobs.filter(job => job.status !== "Closed" && !fit(job).excluded && !fit(job).wrongType)
+  const skills = [...new Set(state.jobs.filter(job => !job.deleted && job.status !== "Closed" && !fit(job).excluded && !fit(job).wrongType)
     .flatMap(job => fit(job).gaps))];
   if (skills.length) node("p", "Skills to review: " + skills.join(", "), gaps);
   const list = $("prepList");
@@ -271,8 +296,13 @@ for (const tab of document.querySelectorAll("[data-tab]")) {
     }
   };
 }
-for (const value of statuses) node("option", value, $("statusFilter"));
-$("statusFilter").onchange = renderJobs;
+for (const [view,label] of Object.entries(jobViews)) {
+  const control = button($("jobViews"), label, () => {
+    selectedJobView = view;
+    renderJobs();
+  });
+  control.dataset.view = view;
+}
 $("query").oninput = renderJobs;
 $("jobForm").onsubmit = event => {
   event.preventDefault();
@@ -343,7 +373,7 @@ function download(name, body, type) {
 }
 $("exportJson").onclick = () => download("job-switch-backup.json", JSON.stringify(state, null, 2), "application/json");
 $("exportCsv").onclick = () => {
-  const fields = ["title","company","url","req","location","type","posted","salary","required","status","next","proof","resumeUsed"];
+  const fields = ["title","company","url","req","location","type","posted","salary","required","status","next","proof","resumeUsed","appliedOn","deleted"];
   const cell = value => {
     const text = clean(value);
     return '"' + (/^[=+@-]/.test(text) ? "'" : "") + text.replaceAll('"','""') + '"';
@@ -360,7 +390,7 @@ $("importJson").onchange = async event => {
     const strings = (obj, keys) => obj && keys.every(field => typeof obj[field] === "string");
     const valid = data.profile && typeof data.profile === "object" && !Array.isArray(data.profile) &&
       Object.entries(data.profile).every(([key,value]) => typeof value === (key === "permanent" ? "boolean" : "string")) &&
-      Array.isArray(data.jobs) && data.jobs.every(job => strings(job, ["id","title","company","url","req","location","type","posted","salary","required","status","next","proof","resumeUsed"]) && http(job.url) && statuses.includes(job.status)) &&
+      Array.isArray(data.jobs) && data.jobs.every(job => strings(job, ["id","title","company","url","req","location","type","posted","salary","required","status","next","proof","resumeUsed"]) && http(job.url) && statuses.includes(job.status) && (job.deleted === undefined || typeof job.deleted === "boolean") && (job.appliedOn === undefined || typeof job.appliedOn === "string")) &&
       Array.isArray(data.prep) && data.prep.every(task => strings(task, ["id","task","date"]) && typeof task.done === "boolean");
     if (!valid) throw new Error("Invalid backup");
     if (confirm("Replace the profile, jobs, and practice tasks on this device?") && save(data, "Backup restored.")) fillProfile();
