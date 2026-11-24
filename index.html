@@ -31,6 +31,12 @@
 <option value="verify">Needs verification</option>
 <option value="ready">Application route available</option>
 </select></label>
+<label>Location<select id="locationFilter">
+<option value="">All locations</option>
+<option value="ncr">Delhi NCR</option>
+<option value="remote">Remote</option>
+<option value="other">Other</option>
+</select></label>
 </div>
 <div id="bulkJobs" class="actions"></div>
 <div id="jobsList"></div>
@@ -65,7 +71,7 @@
 <button class="primary">Save job</button>
 </form></details>
 <details class="box"><summary>Find jobs on an employer board</summary>
-<form id="feedForm"><label>Greenhouse board name or job board URL<input name="board" required placeholder="boards.greenhouse.io/company"></label><label>Filter titles<input name="query" value="analyst, data science, data scientist, machine learning"></label><button>Load openings</button></form>
+<form id="feedForm"><label>Greenhouse board name or job board URL<input name="board" required placeholder="boards.greenhouse.io/company"></label><label>Filter titles<input name="query" value="data scientist, applied scientist, machine learning"></label><button>Load openings</button></form>
 <div id="feed"></div></details>
 
 </details>

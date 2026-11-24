@@ -139,11 +139,20 @@ function applicationPack(job) {
     " Would you be comfortable referring me? " + job.url + "\nThanks" + (p.name ? ",\n" + p.name : "!")]
   ).join("\n\n");
 }
+function jobLocationGroup(location) {
+  const text = clean(location).toLowerCase();
+  const confirmedRemote = /\b(?:remote|work from home|wfh)\b/.test(text) &&
+    !/\b(?:hybrid|on[ -]?site|non[ -]remote|remote[ -]friendly|verify remote|confirm india|confirm remote)\b/.test(text);
+  if (confirmedRemote) return "remote";
+  if (/\b(?:delhi|ncr|gurgaon|gurugram|noida|ghaziabad|faridabad|sonipat|bahadurgarh|greater noida|manesar|bhiwadi|meerut|baghpat|palwal|rewari|hapur)\b/.test(text)) return "ncr";
+  return "other";
+}
 function renderJobs() {
   const list = $("jobsList");
   list.replaceChildren();
   const query = $("query").value.trim().toLowerCase();
   const queueFilter = $("queueFilter").value;
+  const locationFilter = $("locationFilter").value;
   const batchKey = job => job.research?.batchKey || job.research?.batchDate || "";
   const latestBatch = state.jobs.reduce((latest,job) => batchKey(job) > latest ? batchKey(job) : latest, "");
   const needsVerification = job => job.research?.best_move === "Verify eligibility" || job.status === "Needs input" || job.status === "Verify submission";
@@ -156,6 +165,7 @@ function renderJobs() {
   }
   const jobs = state.jobs.map(job => ({job, fit:fit(job)}))
     .filter(({job}) => jobView(job) === selectedJobView &&
+      (!locationFilter || jobLocationGroup(job.location) === locationFilter) &&
       (queueFilter !== "latest" || (latestBatch && batchKey(job) === latestBatch)) &&
       (queueFilter !== "verify" || needsVerification(job)) &&
       (queueFilter !== "ready" || (job.research?.best_move && !needsVerification(job))) &&
@@ -193,7 +203,7 @@ function renderJobs() {
       remove.disabled = selectedJobs.size === 0;
     }
   }
-  if (!jobs.length) node("p", query || queueFilter ? "No jobs match your search." : "No " + jobViews[selectedJobView].toLowerCase() + " jobs.", list);
+  if (!jobs.length) node("p", query || queueFilter || locationFilter ? "No jobs match your search." : "No " + jobViews[selectedJobView].toLowerCase() + " jobs.", list);
   for (const {job,fit:match} of jobs) {
     const card = node("article", null, list);
     node("h3", job.title, card);
@@ -355,6 +365,7 @@ for (const [view,label] of Object.entries(jobViews)) {
 }
 $("query").oninput = renderJobs;
 $("queueFilter").onchange = renderJobs;
+$("locationFilter").onchange = renderJobs;
 $("jobForm").onsubmit = event => {
   event.preventDefault();
   const form = event.currentTarget;
