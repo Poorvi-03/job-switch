@@ -8,7 +8,7 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <style>
 :root{color-scheme:dark;font:16px/1.55 system-ui,sans-serif;background:#0c1d24;color:#ecf6f5;--line:#35525a;--accent:#82e8cd}
-*{box-sizing:border-box}body{margin:0}header,main{max-width:900px;margin:auto;padding:24px}header{padding-bottom:0}h1,h2,h3,p{margin:0 0 12px}h1{font-size:clamp(2rem,8vw,3.6rem);letter-spacing:-.06em}h2{font-size:1.45rem}h3{font-size:1.1rem}p,small{color:#b7cdd0}nav,.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}button,input,select,textarea{font:inherit;color:inherit;border:1px solid var(--line);border-radius:9px;background:#10262e;padding:9px 12px}button{min-height:44px;cursor:pointer}button.primary,button[aria-selected=true],button[aria-pressed=true]{background:var(--accent);color:#0c2524;border-color:var(--accent);font-weight:650}a{color:var(--accent)}label{display:grid;gap:4px;margin:8px 0;min-width:0}input,select,textarea{width:100%}textarea{resize:vertical}article,form,.box{padding:16px;border:1px solid var(--line);border-radius:14px;background:#142c35;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:0 12px}summary{cursor:pointer;font-weight:650}details[open]>summary{margin-bottom:12px} [hidden]{display:none!important} :focus-visible{outline:2px solid var(--accent);outline-offset:3px}.fit{color:var(--accent);font-weight:650}#notice{min-height:26px;color:var(--accent)}.compact{margin:0}ul{padding-left:22px}
+*{box-sizing:border-box}body{margin:0}header,main{max-width:900px;margin:auto;padding:24px}header{padding-bottom:0}h1,h2,h3,p{margin:0 0 12px}h1{font-size:clamp(2rem,8vw,3.6rem);letter-spacing:-.06em}h2{font-size:1.45rem}h3{font-size:1.1rem}p,small{color:#b7cdd0}nav,.actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}button,input,select,textarea{font:inherit;color:inherit;border:1px solid var(--line);border-radius:9px;background:#10262e;padding:9px 12px}button{min-height:44px;cursor:pointer}button.primary,button[aria-selected=true],button[aria-pressed=true]{background:var(--accent);color:#0c2524;border-color:var(--accent);font-weight:650}a{color:var(--accent)}label{display:grid;gap:4px;margin:8px 0;min-width:0}input,select,textarea{width:100%}textarea{resize:vertical}article,form,.box{padding:16px;border:1px solid var(--line);border-radius:14px;background:#142c35;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:0 12px}summary{cursor:pointer;font-weight:650}details[open]>summary{margin-bottom:12px} [hidden]{display:none!important} :focus-visible{outline:2px solid var(--accent);outline-offset:3px}.fit{color:var(--accent);font-weight:650}#notice{min-height:26px;color:var(--accent)}.compact{margin:0}.job-selection{display:flex;align-items:center;gap:8px}.job-selection input{width:20px;height:20px}ul{padding-left:22px}
 </style>
 </head>
 <body>
@@ -23,7 +23,16 @@
 <main>
 <section id="jobs">
 <div id="jobViews" class="actions" role="group" aria-label="Job status"></div>
+<div class="grid">
 <label>Search this list<input id="query" type="search"></label>
+<label>Filter jobs<select id="queueFilter">
+<option value="">All jobs in this list</option>
+<option value="latest">Latest batch</option>
+<option value="verify">Needs verification</option>
+<option value="ready">Application route available</option>
+</select></label>
+</div>
+<div id="bulkJobs" class="actions"></div>
 <div id="jobsList"></div>
 <details class="box"><summary>Job sources and sync</summary>
 <details class="box"><summary>Import a ranked shortlist</summary>

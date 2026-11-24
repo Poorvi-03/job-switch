@@ -41,6 +41,7 @@ function planBatch(batch, existing) {
     throw new Error("A batch needs a YYYY-MM-DD date and 1 to 20 jobs.");
   }
   const jobs = [...existing];
+  const batchKey = batch.batch_date + "/" + new Date().toISOString();
   const rejected = [];
   let added = 0;
   let duplicates = 0;
@@ -77,7 +78,7 @@ function planBatch(batch, existing) {
       req:data.req_id, location:data.location, type:["Permanent","Contract","Internship"].includes(data.employment_type) ? data.employment_type : "Unknown",
       posted:/^\d{4}-\d{2}-\d{2}$/.test(data.posting_date) ? data.posting_date : "", salary:data.salary,
       required:data.required_skills, status:"Shortlisted", next:"", proof:"", resumeUsed:"",
-      research:{...data, rank, batchDate:batch.batch_date}});
+      research:{...data, rank, batchDate:batch.batch_date, batchKey}});
     added++;
   }
   return {jobs, added, duplicates, rejected};

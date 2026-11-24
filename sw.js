@@ -1,4 +1,4 @@
-const cacheName = "job-switch-shell-v4";
+const cacheName = "job-switch-shell-v5";
 const files = ["./", "./index.html", "./app.js", "./batch.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", event => event.waitUntil(caches.open(cacheName).then(cache => cache.addAll(files))));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys =>

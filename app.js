@@ -9,6 +9,8 @@ function jobView(job) {
   return "pending";
 }
 let selectedJobView = "pending";
+let selectingJobs = false;
+const selectedJobs = new Set();
 const key = "job-switch-v1";
 const words = text => text.toLowerCase().split(/[\n,]+/).map(word => word.trim()).filter(Boolean);
 const clean = value => String(value ?? "").trim();
@@ -141,6 +143,10 @@ function renderJobs() {
   const list = $("jobsList");
   list.replaceChildren();
   const query = $("query").value.trim().toLowerCase();
+  const queueFilter = $("queueFilter").value;
+  const batchKey = job => job.research?.batchKey || job.research?.batchDate || "";
+  const latestBatch = state.jobs.reduce((latest,job) => batchKey(job) > latest ? batchKey(job) : latest, "");
+  const needsVerification = job => job.research?.best_move === "Verify eligibility" || job.status === "Needs input" || job.status === "Verify submission";
   const counts = {pending:0, applied:0, closed:0, deleted:0};
   for (const job of state.jobs) counts[jobView(job)]++;
   for (const control of $("jobViews").querySelectorAll("button")) {
@@ -150,18 +156,60 @@ function renderJobs() {
   }
   const jobs = state.jobs.map(job => ({job, fit:fit(job)}))
     .filter(({job}) => jobView(job) === selectedJobView &&
+      (queueFilter !== "latest" || (latestBatch && batchKey(job) === latestBatch)) &&
+      (queueFilter !== "verify" || needsVerification(job)) &&
+      (queueFilter !== "ready" || (job.research?.best_move && !needsVerification(job))) &&
       [job.title, job.company, job.location, job.req].join(" ").toLowerCase().includes(query))
     .sort((a,b) => {
       const left = a.job.research;
       const right = b.job.research;
-      if (left && right) return right.batchDate.localeCompare(left.batchDate) || left.rank - right.rank;
+      if (left && right) return batchKey(b.job).localeCompare(batchKey(a.job)) || left.rank - right.rank;
       if (left || right) return left ? -1 : 1;
       return b.fit.score - a.fit.score || b.job.posted.localeCompare(a.job.posted);
     });
-  if (!jobs.length) node("p", query ? "No jobs match your search." : "No " + jobViews[selectedJobView].toLowerCase() + " jobs.", list);
+  for (const id of selectedJobs) if (!jobs.some(({job}) => job.id === id)) selectedJobs.delete(id);
+  const bulk = $("bulkJobs");
+  bulk.replaceChildren();
+  if (jobs.length && selectedJobView !== "deleted") {
+    button(bulk, selectingJobs ? "Cancel selection" : "Select jobs", () => {
+      selectingJobs = !selectingJobs;
+      selectedJobs.clear();
+      renderJobs();
+    });
+    if (selectingJobs) {
+      button(bulk, "Select all shown", () => {
+        for (const {job} of jobs) selectedJobs.add(job.id);
+        renderJobs();
+      });
+      const remove = button(bulk, "Delete selected (" + selectedJobs.size + ")", () => {
+        const count = selectedJobs.size;
+        const updated = state.jobs.map(job => selectedJobs.has(job.id) ? {...job, deleted:true} : job);
+        if (save({...state,jobs:updated}, count + " moved to Deleted. You can restore them there.")) {
+          selectedJobs.clear();
+          selectingJobs = false;
+          renderJobs();
+        }
+      });
+      remove.disabled = selectedJobs.size === 0;
+    }
+  }
+  if (!jobs.length) node("p", query || queueFilter ? "No jobs match your search." : "No " + jobViews[selectedJobView].toLowerCase() + " jobs.", list);
   for (const {job,fit:match} of jobs) {
     const card = node("article", null, list);
     node("h3", job.title, card);
+    if (selectingJobs && selectedJobView !== "deleted") {
+      const label = node("label", null, card);
+      label.className = "job-selection";
+      const checkbox = node("input", null, label);
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedJobs.has(job.id);
+      node("span", "Select " + job.title, label);
+      checkbox.onchange = () => {
+        if (checkbox.checked) selectedJobs.add(job.id);
+        else selectedJobs.delete(job.id);
+        renderJobs();
+      };
+    }
     node("p", [job.company, job.location || "Location unconfirmed", job.type, job.salary, job.posted && "Posted " + job.posted].filter(Boolean).join(" · "), card);
     const controls = node("div", null, card);
     controls.className = "actions";
@@ -299,11 +347,14 @@ for (const tab of document.querySelectorAll("[data-tab]")) {
 for (const [view,label] of Object.entries(jobViews)) {
   const control = button($("jobViews"), label, () => {
     selectedJobView = view;
+    selectingJobs = false;
+    selectedJobs.clear();
     renderJobs();
   });
   control.dataset.view = view;
 }
 $("query").oninput = renderJobs;
+$("queueFilter").onchange = renderJobs;
 $("jobForm").onsubmit = event => {
   event.preventDefault();
   const form = event.currentTarget;
